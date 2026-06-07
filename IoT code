@@ -1,0 +1,84 @@
+Code of the whole project using MQTT protocol
+#include <WiFi.h>
+#include "ThingSpeak.h"
+// ---------------- WiFi & ThingSpeak Setup ----------------
+const char* ssid = "YOUR_WIFI_SSID";          // Replace with your WiFi SSID
+const char* password = "YOUR_WIFI_PASSWORD";  // Replace with your WiFi password
+WiFiClient client;
+
+unsigned long channelID = YOUR_CHANNEL_ID;    // Replace with your ThingSpeak channel ID
+const char* writeAPIKey = "YOUR_API_KEY";     // Replace with your ThingSpeak Write API Key
+#define MQ7_PIN     34   // Analog input pin for MQ7
+#define MQ135_PIN   35   // Analog input pin for MQ135
+#define MG811_PIN   32   // Analog input pin for MG811
+#define SOUND_PIN   33   // Analog input pin for Sound sensor
+#define LED_PIN     25   // Digital output pin for LED
+#define BUZZER_PIN  26   // Digital output pin for Buzzer
+
+float mq7Factor   = 0.1;   // Example scaling factor for MQ7
+float mq135Factor = 0.1;   // Example scaling factor for MQ135
+float mg811Factor = 0.1;   // Example scaling factor for MG811
+float soundFactor = 0.1;   // Example scaling factor for Sound sensor
+// ---------------- Setup ----------------
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  // Connect WiFi
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected!");
+
+  // Initialize ThingSpeak
+  ThingSpeak.begin(client);
+}
+// ---------------- Main Loop ----------------
+void loop() {
+  // --- Step 1: Read Raw Sensor Values ---
+  int mq7Raw   = analogRead(MQ7_PIN);
+  int mq135Raw = analogRead(MQ135_PIN);
+  int mg811Raw = analogRead(MG811_PIN);
+  int soundRaw = analogRead(SOUND_PIN);
+
+  // --- Step 2: Apply Calibration Factors (convert raw ADC to meaningful values) ---
+  float mq7Value   = mq7Raw * mq7Factor;
+  float mq135Value = mq135Raw * mq135Factor;
+  float mg811Value = mg811Raw * mg811Factor;
+  float soundValue = soundRaw * soundFactor;
+  Serial.println("---- Sensor Readings ----");
+  Serial.printf("MQ7   (CO): %.2f\n", mq7Value);
+  Serial.printf("MQ135 (Air Quality): %.2f\n", mq135Value);
+  Serial.printf("MG811 (CO2): %.2f\n", mg811Value);
+
+  Serial.printf("Sound Level: %.2f\n", soundValue);
+
+  // --- Step 4: Threshold Alerts (LED + Buzzer) ---
+  if (mq7Value > 200 || mq135Value > 200 || mg811Value > 200) {
+    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(BUZZER_PIN, HIGH);
+    Serial.println(" ALERT: Hazardous gas levels detected!");
+  } else {
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(BUZZER_PIN, LOW);
+    Serial.println("Safe levels.");
+  }
+  // --- Step 5: Upload Data to ThingSpeak ---
+  ThingSpeak.setField(1, mq7Value);
+  ThingSpeak.setField(2, mq135Value);
+  ThingSpeak.setField(3, mg811Value);
+  ThingSpeak.setField(4, soundValue);
+  int status = ThingSpeak.writeFields(channelID, writeAPIKey);
+  if (status == 200) {
+    Serial.println("Data sent to ThingSpeak successfully!");
+  } else {
+    Serial.println(" Error sending data to ThingSpeak.");
+  }
+  // --- Step 6: Delay (ThingSpeak requires 15s minimum between updates) ---
+  delay(15000);
+}
