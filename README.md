@@ -1,2 +1,2 @@
 # IoT-Environment-Monitoring-system-using-ESP32
-The IoT-Based Environment Monitoring System uses an ESP32 to monitor temperature, humidity, air quality, and light intensity in real time. The collected data is sent over Wi-Fi to a cloud platform for remote monitoring through a web or mobile dashboard.
+The project primarily involved designing a custom double-layer PCB in KiCad, including schematic design, routing, and validation. The PCB was integrated with an ESP32 and multiple sensors to create an IoT-based environmental monitoring system with real-time cloud connectivity and alert mechanisms.
